@@ -48,16 +48,32 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ─── Load Data ─────────────────────────────────────────────────
 @st.cache_resource
 def load_data():
     df = pd.read_csv("nepal_budget_clean.csv")
     df["amount_crore"] = pd.to_numeric(df["amount_crore"], errors="coerce").fillna(0)
+    
+    # Sectors to exclude from charts (summary/transfer rows)
+    exclude = ["Budget Summary", "Fiscal Transfer", "Overall"]
+    
+    # For charts — only sector totals, no sub-items, no summary rows
+    df_chart = df[
+        (df["amount_type"] == "sector_total") &
+        (~df["sector"].isin(exclude))
+    ].copy()
+    
+    # For search — all rows except summary
+    df_search = df[~df["sector"].isin(exclude)].copy()
+    
     with open("sector_list.json") as f:
         sectors = json.load(f)
-    return df, sectors
+    
+    # Remove summary sectors from dropdown
+    sectors = [s for s in sectors if s not in exclude]
+    
+    return df_search, df_chart, sectors
 
-df, sectors = load_data()
+df, df_chart, sectors = load_data()
 
 # ─── Header ────────────────────────────────────────────────────
 st.markdown("""
@@ -68,8 +84,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ─── Top Metrics ───────────────────────────────────────────────
-total = df["amount_crore"].sum()
-top_sector = df.groupby("sector")["amount_crore"].sum().idxmax()
+# Use only sector totals for the headline number
+total = df_chart[df_chart["amount_type"] == "sector_total"]["amount_crore"].sum()
+top_sector = df_chart.groupby("sector")["amount_crore"].sum().idxmax()
 total_entries = len(df)
 
 c1, c2, c3 = st.columns(3)
@@ -102,7 +119,8 @@ with tab1:
     st.markdown("<p style='color:#aaa'>Examples: 'how much for education', 'health budget', 'roads allocation'</p>",
                 unsafe_allow_html=True)
 
-    query = st.text_input("", placeholder="Type your question here...", key="search")
+    query = st.text_input("Search", placeholder="Type your question here...",
+                          key="search", label_visibility="collapsed")
 
     if query:
         keywords = query.lower().split()
@@ -110,76 +128,123 @@ with tab1:
         # Keyword to sector mapping
         sector_map = {
             "education": "Education", "school": "Education", "university": "Education",
-            "health": "Health", "hospital": "Health", "medical": "Health", "doctor": "Health",
-            "road": "Roads", "highway": "Roads", "transport": "Roads", "bridge": "Roads",
-            "energy": "Energy", "electricity": "Energy", "power": "Energy", "hydro": "Energy",
+            "scholarship": "Education", "student": "Education",
+            "health": "Health", "hospital": "Health", "medical": "Health",
+            "doctor": "Health", "nurse": "Health", "insurance": "Health",
+            "road": "Roads & Urban", "highway": "Roads & Urban",
+            "transport": "Roads & Urban", "bridge": "Roads & Urban",
+            "urban": "Roads & Urban", "rajmarg": "Roads & Urban",
+            "energy": "Energy", "electricity": "Energy", "power": "Energy",
+            "hydro": "Energy", "transmission": "Energy",
             "water": "Water", "sanitation": "Water", "drinking": "Water",
-            "agriculture": "Agriculture", "farming": "Agriculture", "crop": "Agriculture",
-            "security": "Social Security", "social": "Social Security", "pension": "Social Security",
-            "ict": "ICT", "technology": "ICT", "digital": "ICT", "internet": "ICT",
-            "forest": "Forest", "environment": "Environment", "green": "Forest",
+            "melamchi": "Water", "wastewater": "Water",
+            "agriculture": "Agriculture", "farming": "Agriculture",
+            "fertilizer": "Agriculture", "crop": "Agriculture", "livestock": "Agriculture",
+            "security": "Social Security", "social": "Social Security",
+            "pension": "Social Security", "dalit": "Social Security",
+            "ict": "ICT", "technology": "ICT", "digital": "ICT",
+            "internet": "ICT", "communication": "ICT",
+            "forest": "Forest", "environment": "Forest", "climate": "Forest",
             "sport": "Sports", "sports": "Sports", "stadium": "Sports",
-            "irrigation": "Irrigation", "canal": "Irrigation",
-            "tourism": "Tourism", "travel": "Tourism",
+            "cricket": "Sports", "football": "Sports",
+            "irrigation": "Irrigation", "canal": "Irrigation", "dam": "Irrigation",
+            "tourism": "Culture & Tourism", "travel": "Culture & Tourism",
+            "culture": "Culture & Tourism", "lumbini": "Culture & Tourism",
             "defense": "Defense", "army": "Defense", "military": "Defense",
-            "industry": "Industry", "factory": "Industry",
+            "industry": "Industry", "factory": "Industry", "startup": "Industry",
+            "labor": "Labor", "employment": "Labor", "worker": "Labor",
+            "aviation": "Aviation", "airport": "Aviation", "flight": "Aviation",
+            "science": "Science & Tech", "innovation": "Science & Tech",
+            "women": "Women & Children", "children": "Women & Children",
+            "child": "Women & Children", "gender": "Women & Children",
         }
 
-        # Find matching sector
+        # Find matched sector
         matched_sector = None
         for kw in keywords:
             if kw in sector_map:
                 matched_sector = sector_map[kw]
                 break
 
-        # Search descriptions too
-        mask = df["description"].str.lower().str.contains("|".join(keywords), na=False)
-        sector_mask = df["sector"] == matched_sector if matched_sector else pd.Series([False] * len(df))
-        results = df[mask | sector_mask].copy()
+        if matched_sector:
+            # Get sector total first
+            sector_data = df[df["sector"] == matched_sector].copy()
+            sector_totals = sector_data[sector_data["amount_type"] == "sector_total"]
+            sector_subs = sector_data[sector_data["amount_type"] == "allocation"]
 
-        if len(results) > 0:
-            total_amount = results["amount_crore"].sum()
-            st.markdown(f"""<div class='answer-card'>
-                <h3>💡 Answer</h3>
-                <p>Found <b>{len(results)}</b> budget entries matching "<b>{query}</b>"
-                with a total allocation of <b>Rs. {total_amount:,.0f} crore</b>
-                (Rs. {total_amount/100:.1f} billion) in fiscal year 2083/84.</p>
-            </div>""", unsafe_allow_html=True)
+            if not sector_totals.empty:
+                answer_amount = sector_totals["amount_crore"].max()
+                answer_text = f"Rs. {answer_amount:,.0f} crore (Rs. {answer_amount/100:.1f} billion) has been allocated to <b>{matched_sector}</b> in fiscal year 2083/84."
 
-            # Chart
-            if matched_sector:
-                sector_df = df[df["sector"] == matched_sector].nlargest(10, "amount_crore")
-                fig = px.bar(
-                    sector_df,
-                    x="amount_crore",
-                    y="description",
-                    orientation="h",
-                    title=f"{matched_sector} Budget Breakdown",
-                    color="amount_crore",
-                    color_continuous_scale="Reds",
-                    labels={"amount_crore": "Amount (Crore NPR)", "description": ""}
-                )
-                fig.update_layout(
-                    paper_bgcolor="#1c1f26",
-                    plot_bgcolor="#1c1f26",
-                    font=dict(color="white", size=12),
-                    title_font=dict(color="white", size=16),
-                    height=400,
-                    showlegend=False,
-                    xaxis=dict(color="white", gridcolor="#333"),
-                    yaxis=dict(color="white", gridcolor="#333")
-                )
-                st.plotly_chart(fig, use_container_width=True)
+                st.markdown(f"""<div class='answer-card'>
+                    <h3>💡 Answer</h3>
+                    <p>{answer_text}</p>
+                </div>""", unsafe_allow_html=True)
 
-            # Results table
-            st.markdown("**Matching budget entries:**")
-            display_df = results[["sector", "description", "amount_crore", "amount_type"]].copy()
-            display_df.columns = ["Sector", "Description", "Amount (Crore)", "Type"]
-            display_df = display_df.sort_values("Amount (Crore)", ascending=False)
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
+                # Chart — sub-items only
+                if not sector_subs.empty:
+                    fig = px.bar(
+                        sector_subs.sort_values("amount_crore"),
+                        x="amount_crore",
+                        y="description",
+                        orientation="h",
+                        title=f"{matched_sector} — Budget Breakdown",
+                        color="amount_crore",
+                        color_continuous_scale="Reds",
+                        labels={"amount_crore": "Amount (Crore NPR)", "description": ""}
+                    )
+                    fig.update_layout(
+                        paper_bgcolor="#1c1f26",
+                        plot_bgcolor="#1c1f26",
+                        font=dict(color="white", size=12),
+                        title_font=dict(color="white", size=16),
+                        height=400,
+                        showlegend=False,
+                        xaxis=dict(color="white", gridcolor="#333"),
+                        yaxis=dict(color="white", gridcolor="#333")
+                    )
+                    st.plotly_chart(fig, width="stretch")
+
+                # Show sector total + breakdown note
+                st.markdown(f"**Sector total: Rs. {answer_amount:,.0f} crore** — breakdown below (sub-items are included within the total, not additional):")
+                display_df = sector_subs[["description", "amount_crore"]].copy()
+                display_df.columns = ["Description", "Amount (Crore NPR)"]
+                display_df = display_df.sort_values("Amount (Crore NPR)", ascending=False)
+                st.dataframe(display_df, width="stretch", hide_index=True)
+
+            else:
+                # No sector total — show sub-items
+                st.markdown(f"""<div class='answer-card'>
+                    <h3>💡 Answer</h3>
+                    <p>Found <b>{len(sector_subs)}</b> entries for <b>{matched_sector}</b>
+                    totalling Rs. {sector_subs['amount_crore'].sum():,.0f} crore.</p>
+                </div>""", unsafe_allow_html=True)
+                st.dataframe(sector_subs[["description", "amount_crore"]],
+                           width="stretch", hide_index=True)
 
         else:
-            st.warning(f"No budget entries found for '{query}'. Try keywords like: education, health, roads, energy, water, agriculture.")
+            # No sector match — search descriptions
+            mask = df["description"].str.lower().str.contains(
+                "|".join(keywords), na=False)
+            results = df[mask].copy()
+
+            if len(results) > 0:
+                totals = results[results["amount_type"] == "sector_total"]
+                answer_amount = totals["amount_crore"].sum() if not totals.empty else results["amount_crore"].sum()
+
+                st.markdown(f"""<div class='answer-card'>
+                    <h3>💡 Answer</h3>
+                    <p>Found <b>{len(results)}</b> budget entries matching
+                    "<b>{query}</b>" with a total of
+                    <b>Rs. {answer_amount:,.0f} crore</b>.</p>
+                </div>""", unsafe_allow_html=True)
+
+                display_df = results[["sector", "description", "amount_crore", "amount_type"]].copy()
+                display_df.columns = ["Sector", "Description", "Amount (Crore)", "Type"]
+                display_df = display_df.sort_values("Amount (Crore)", ascending=False)
+                st.dataframe(display_df, width="stretch", hide_index=True)
+            else:
+                st.warning(f"No entries found for '{query}'. Try: education, health, roads, energy, water, agriculture.")
 
 # ══════════════════════════════════════════════
 # TAB 2 — Sector Explorer
@@ -193,7 +258,8 @@ with tab2:
     sector_data = sector_data[sector_data["amount_crore"] > 0].sort_values("amount_crore", ascending=False)
 
     if len(sector_data) > 0:
-        sector_total = sector_data["amount_crore"].sum()
+        sector_totals_only = sector_data[sector_data["amount_type"] == "sector_total"]
+        sector_total = sector_totals_only["amount_crore"].sum() if not sector_totals_only.empty else sector_data["amount_crore"].sum()
         pct_of_total = (sector_total / total * 100) if total > 0 else 0
 
         c1, c2, c3 = st.columns(3)
@@ -230,13 +296,13 @@ with tab2:
             font_color="white",
             height=500
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         # Full table
         st.markdown("**All entries in this sector:**")
         display_df = sector_data[["description", "amount_crore", "amount_type"]].copy()
         display_df.columns = ["Description", "Amount (Crore NPR)", "Type"]
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        st.dataframe(display_df, width='stretch', hide_index=True)
 
     else:
         st.info(f"No allocation amounts found for {selected_sector}. This sector may have policy entries only.")
@@ -258,7 +324,7 @@ with tab3:
             sector_summary,
             values="amount_crore",
             names="sector",
-            title="Budget Distribution by Sector",
+            title="Budget Distribution by Sector (% of captured allocations)",
             color_discrete_sequence=px.colors.sequential.Reds_r
         )
         fig_pie.update_layout(
@@ -268,7 +334,7 @@ with tab3:
             height=450,
             legend=dict(font=dict(color="white"))
         )
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_pie, width='stretch')
 
     with c2:
         fig_bar = px.bar(
@@ -289,13 +355,14 @@ with tab3:
             xaxis=dict(color="white", tickangle=-45, gridcolor="#333"),
             yaxis=dict(color="white", gridcolor="#333")
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, width='stretch')
 
     # Summary table
     st.markdown("**Complete sector summary:**")
-    sector_summary["Amount (Billion NPR)"] = (sector_summary["amount_crore"] / 100).round(2)
-    sector_summary.columns = ["Sector", "Amount (Crore NPR)", "Amount (Billion NPR)"]
-    st.dataframe(sector_summary, use_container_width=True, hide_index=True)
+    sector_summary = df_chart.groupby("sector")["amount_crore"].sum().reset_index()
+    sector_summary = sector_summary[sector_summary["amount_crore"] > 0]
+    sector_summary = sector_summary.sort_values("amount_crore", ascending=False)
+    st.dataframe(sector_summary, width='stretch', hide_index=True)
 
 # ─── Footer ────────────────────────────────────────────────────
 st.markdown("---")
