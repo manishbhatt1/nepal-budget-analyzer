@@ -1,5 +1,8 @@
 # 🇳🇵 Nepal Government Budget Analyzer 2083/84
 
+## 🚀 Live Demo
+👉 [Try the app here](https://nepal-budget-analyzer.streamlit.app/)
+
 A civic tech web app that makes Nepal's federal budget accessible to ordinary citizens. Ask questions in plain English, explore sector-wise allocations, and visualize where public money goes.
 
 **Live data from:** Nepal Ministry of Finance — Budget Speech 2083/84 (FY 2026/27)
