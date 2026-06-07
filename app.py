@@ -45,6 +45,19 @@ st.markdown("""
     }
     .answer-card h3 { color: #1976d2; margin: 0 0 8px 0; }
     .answer-card p { color: #1a1a1a; font-size: 16px; margin: 0; }
+
+    /* Responsive fixes */
+    @media (max-width: 768px) {
+        .metric-card h2 {
+            font-size: 18px;
+        }
+        .metric-card h3 {
+            font-size: 11px;
+        }
+        .answer-card p {
+            font-size: 14px;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -179,6 +192,12 @@ with tab1:
                 st.markdown(f"""<div class='answer-card'>
                     <h3>💡 Answer</h3>
                     <p>{answer_text}</p>
+                    <p style='color:#888; font-size:13px; margin-top:8px'>
+                    ⚠️ This shows the total allocation for the <b>{matched_sector}</b> sector. 
+                    Specific line items like individual salaries, allowances, or sub-programs 
+                    may exist within this budget but could not be extracted as separate figures 
+                    from the budget speech text.
+                    </p>
                 </div>""", unsafe_allow_html=True)
 
                 # Chart — sub-items only
@@ -313,7 +332,7 @@ with tab2:
 with tab3:
     st.markdown("### Nepal Budget 2083/84 — Full Overview")
 
-    sector_summary = df.groupby("sector")["amount_crore"].sum().reset_index()
+    sector_summary = df_chart.groupby("sector")["amount_crore"].sum().reset_index()
     sector_summary = sector_summary[sector_summary["amount_crore"] > 0]
     sector_summary = sector_summary.sort_values("amount_crore", ascending=False)
 
