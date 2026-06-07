@@ -217,10 +217,12 @@ with tab1:
                         plot_bgcolor="#1c1f26",
                         font=dict(color="white", size=12),
                         title_font=dict(color="white", size=16),
-                        height=400,
+                        height=350,
+                        margin=dict(l=0, r=10, t=40, b=40),
+                        autosize=True,
                         showlegend=False,
                         xaxis=dict(color="white", gridcolor="#333"),
-                        yaxis=dict(color="white", gridcolor="#333")
+                        yaxis=dict(color="white", gridcolor="#333", automargin=True)
                     )
                     st.plotly_chart(fig, width="stretch")
 
@@ -313,7 +315,10 @@ with tab2:
             paper_bgcolor="#0e1117",
             plot_bgcolor="#0e1117",
             font_color="white",
-            height=500
+            height=350,
+            margin=dict(l=0, r=10, t=40, b=40),
+            autosize=True,
+            yaxis=dict(color="white", gridcolor="#333", automargin=True)
         )
         st.plotly_chart(fig, width='stretch')
 
@@ -351,6 +356,8 @@ with tab3:
             font=dict(color="white", size=12),
             title_font=dict(color="white", size=16),
             height=450,
+            margin=dict(l=0, r=10, t=40, b=40),
+            autosize=True,
             legend=dict(font=dict(color="white"))
         )
         st.plotly_chart(fig_pie, width='stretch')
@@ -371,8 +378,10 @@ with tab3:
             font=dict(color="white", size=12),
             title_font=dict(color="white", size=16),
             height=450,
+            margin=dict(l=0, r=10, t=40, b=40),
+            autosize=True,
             xaxis=dict(color="white", tickangle=-45, gridcolor="#333"),
-            yaxis=dict(color="white", gridcolor="#333")
+            yaxis=dict(color="white", gridcolor="#333", automargin=True)
         )
         st.plotly_chart(fig_bar, width='stretch')
 
