@@ -7,6 +7,17 @@ import plotly.graph_objects as go
 import json
 import requests
 
+st.markdown("""
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+    .bi { vertical-align: middle; margin-right: 6px; }
+</style>
+""", unsafe_allow_html=True)
+
+
+def bi(icon_name, color="#ffffff", size="18px"):
+    return f'<i class="bi {icon_name}" style="color:{color}; font-size:{size}; margin-right:6px; vertical-align:middle;"></i>'
+
 # ─── Page Config ───────────────────────────────────────────────
 st.set_page_config(
     page_title="Nepal Budget Analyzer 2083/84",
@@ -90,9 +101,9 @@ df, df_chart, sectors = load_data()
 
 # ─── Header ────────────────────────────────────────────────────
 st.markdown("""
-<div style='text-align:center; padding: 20px 0 10px 0'>
-    <h1 style='color:white; font-size:36px; margin:0'>🇳🇵 Nepal Budget Analyzer</h1>
-    <p style='color:#aaa; font-size:16px; margin:4px 0'>आर्थिक वर्ष २०८३/८४ — Fiscal Year 2026/27</p>
+<div style='text-align:center; padding: 24px 0 16px 0; background: linear-gradient(90deg, #1a0a0a, #0a1a2a); border-radius: 12px; margin-bottom: 16px;'>
+    <h1 style='color:#ff6b6b; font-size:38px; margin:0; font-weight:800; letter-spacing:0.5px;'>Nepal Budget Analyzer</h1>
+    <p style='color:#a0b4c8; font-size:16px; margin:8px 0 0 0'>आर्थिक वर्ष २०८३/८४ — Fiscal Year 2026/27</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -105,30 +116,30 @@ total_entries = len(df)
 c1, c2, c3 = st.columns(3)
 with c1:
     st.markdown(f"""<div class='metric-card'>
-        <h3>TOTAL BUDGET CAPTURED</h3>
+        <h3>{bi('bi-cash-coin', '#ff6b6b')} TOTAL BUDGET CAPTURED</h3>
         <h2>Rs. {total:,.0f} Cr</h2>
     </div>""", unsafe_allow_html=True)
 with c2:
     st.markdown(f"""<div class='metric-card'>
-        <h3>TOP SECTOR</h3>
+        <h3>{bi('bi-bar-chart-line', '#ff6b6b')} TOP SECTOR</h3>
         <h2>{top_sector}</h2>
     </div>""", unsafe_allow_html=True)
 with c3:
     st.markdown(f"""<div class='metric-card'>
-        <h3>BUDGET ENTRIES</h3>
+        <h3>{bi('bi-list-check', '#ff6b6b')} BUDGET ENTRIES</h3>
         <h2>{total_entries} items</h2>
     </div>""", unsafe_allow_html=True)
 
 st.markdown("---")
 
 # ─── Tabs ──────────────────────────────────────────────────────
-tab1, tab2, tab3 = st.tabs(["🔍 Ask the Budget", "📊 Sector Explorer", "🗺️ Budget Overview"])
+tab1, tab2, tab3 = st.tabs(["Ask the Budget", "Sector Explorer", "Budget Overview"])
 
 # ══════════════════════════════════════════════
 # TAB 1 — Ask the Budget
 # ══════════════════════════════════════════════
 with tab1:
-    st.markdown("### Ask anything about Nepal's 2083/84 Budget")
+    st.markdown(f"### {bi('bi-search', '#4fc3f7')} Ask anything about Nepal's 2083/84 Budget", unsafe_allow_html=True)
     st.markdown("<p style='color:#aaa'>Examples: 'how much for education', 'health budget', 'roads allocation'</p>",
                 unsafe_allow_html=True)
 
@@ -190,10 +201,10 @@ with tab1:
                 answer_text = f"Rs. {answer_amount:,.0f} crore (Rs. {answer_amount/100:.1f} billion) has been allocated to <b>{matched_sector}</b> in fiscal year 2083/84."
 
                 st.markdown(f"""<div class='answer-card'>
-                    <h3>💡 Answer</h3>
+                    <h3>{bi('bi-lightbulb', '#1976d2')} Answer</h3>
                     <p>{answer_text}</p>
                     <p style='color:#888; font-size:13px; margin-top:8px'>
-                    ⚠️ This shows the total allocation for the <b>{matched_sector}</b> sector. 
+                    {bi('bi-exclamation-triangle', '#ff9800')} This shows the total allocation for the <b>{matched_sector}</b> sector. 
                     Specific line items like individual salaries, allowances, or sub-programs 
                     may exist within this budget but could not be extracted as separate figures 
                     from the budget speech text.
@@ -236,7 +247,7 @@ with tab1:
             else:
                 # No sector total — show sub-items
                 st.markdown(f"""<div class='answer-card'>
-                    <h3>💡 Answer</h3>
+                    <h3>{bi('bi-lightbulb', '#1976d2')} Answer</h3>
                     <p>Found <b>{len(sector_subs)}</b> entries for <b>{matched_sector}</b>
                     totalling Rs. {sector_subs['amount_crore'].sum():,.0f} crore.</p>
                 </div>""", unsafe_allow_html=True)
@@ -254,7 +265,7 @@ with tab1:
                 answer_amount = totals["amount_crore"].sum() if not totals.empty else results["amount_crore"].sum()
 
                 st.markdown(f"""<div class='answer-card'>
-                    <h3>💡 Answer</h3>
+                    <h3>{bi('bi-lightbulb', '#1976d2')} Answer</h3>
                     <p>Found <b>{len(results)}</b> budget entries matching
                     "<b>{query}</b>" with a total of
                     <b>Rs. {answer_amount:,.0f} crore</b>.</p>
@@ -271,7 +282,7 @@ with tab1:
 # TAB 2 — Sector Explorer
 # ══════════════════════════════════════════════
 with tab2:
-    st.markdown("### Explore Budget by Sector")
+    st.markdown(f"### {bi('bi-pie-chart', '#4fc3f7')} Explore Budget by Sector", unsafe_allow_html=True)
 
     selected_sector = st.selectbox("Select a sector", sorted(sectors))
 
@@ -335,7 +346,7 @@ with tab2:
 # TAB 3 — Budget Overview
 # ══════════════════════════════════════════════
 with tab3:
-    st.markdown("### Nepal Budget 2083/84 — Full Overview")
+    st.markdown(f"### {bi('bi-map', '#4fc3f7')} Nepal Budget 2083/84 — Full Overview", unsafe_allow_html=True)
 
     sector_summary = df_chart.groupby("sector")["amount_crore"].sum().reset_index()
     sector_summary = sector_summary[sector_summary["amount_crore"] > 0]
